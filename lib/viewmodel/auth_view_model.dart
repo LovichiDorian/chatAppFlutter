@@ -12,8 +12,8 @@ class AuthViewModel extends ChangeNotifier {
   final FirebaseFirestore _db;
 
   AuthViewModel({FirebaseAuth? auth, FirebaseFirestore? db})
-      : _auth = auth ?? FirebaseAuth.instance,
-        _db = db ?? FirebaseFirestore.instance {
+    : _auth = auth ?? FirebaseAuth.instance,
+      _db = db ?? FirebaseFirestore.instance {
     _sub = _auth.authStateChanges().listen(_onAuthChange);
   }
 
@@ -59,7 +59,9 @@ class AuthViewModel extends ChangeNotifier {
     try {
       _error = null;
       final cred = await _auth.createUserWithEmailAndPassword(
-          email: email, password: password);
+        email: email,
+        password: password,
+      );
       await cred.user?.updateDisplayName(displayName);
       final profile = ChatUser(
         id: cred.user!.uid,

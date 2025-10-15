@@ -28,9 +28,9 @@ class Message {
   }
 
   Map<String, dynamic> toMap() => {
-        'from': from,
-        'to': to,
-        'content': content,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-      };
+    'from': from,
+    'to': to,
+    'content': content,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+  };
 }

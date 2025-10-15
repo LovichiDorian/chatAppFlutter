@@ -10,16 +10,18 @@ class ChatViewModel extends ChangeNotifier {
   final String currentUserId;
 
   ChatViewModel({FirebaseFirestore? db, required this.currentUserId})
-      : _db = db ?? FirebaseFirestore.instance;
+    : _db = db ?? FirebaseFirestore.instance;
 
   Stream<List<ChatUser>> usersStream() {
     return _db
         .collection(FirestorePaths.users)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => ChatUser.fromMap(d.data()))
-            .where((u) => u.id != currentUserId)
-            .toList());
+        .map(
+          (snap) => snap.docs
+              .map((d) => ChatUser.fromMap(d.data()))
+              .where((u) => u.id != currentUserId)
+              .toList(),
+        );
   }
 
   String chatIdFor(String otherUserId) {
@@ -33,9 +35,10 @@ class ChatViewModel extends ChangeNotifier {
         .collection(FirestorePaths.messages(chatId))
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => Message.fromMap(d.id, d.data()))
-            .toList());
+        .map(
+          (snap) =>
+              snap.docs.map((d) => Message.fromMap(d.id, d.data())).toList(),
+        );
   }
 
   Future<void> sendMessage({

@@ -24,10 +24,10 @@ class ChatUser {
   }
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'displayName': displayName,
-        'email': email,
-        'bio': bio,
-        'avatarUrl': avatarUrl,
-      };
+    'id': id,
+    'displayName': displayName,
+    'email': email,
+    'bio': bio,
+    'avatarUrl': avatarUrl,
+  };
 }

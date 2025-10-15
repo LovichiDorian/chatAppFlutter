@@ -4,12 +4,8 @@ class Chat {
 
   const Chat({required this.id, required this.members});
 
-  factory Chat.fromMap(String id, Map<String, dynamic> data) => Chat(
-        id: id,
-        members: List<String>.from(data['members'] ?? const []),
-      );
+  factory Chat.fromMap(String id, Map<String, dynamic> data) =>
+      Chat(id: id, members: List<String>.from(data['members'] ?? const []));
 
-  Map<String, dynamic> toMap() => {
-        'members': members,
-      };
+  Map<String, dynamic> toMap() => {'members': members};
 }
