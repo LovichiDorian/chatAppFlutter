@@ -25,3 +25,12 @@ class FirestorePaths {
   static String chat(String chatId) => '$chats/$chatId';
   static String messages(String chatId) => '${chat(chatId)}/messages';
 }
+
+/// Notifications-related constants.
+class Notifications {
+  /// Web Push VAPID key from Firebase Console > Project Settings > Cloud Messaging.
+  /// If null, getToken() on web may return null and push notifications won't work.
+  /// Replace with your key like:
+  /// "BPr...your-public-vapid-key...".
+  static const String? webVapidKey = null;
+}

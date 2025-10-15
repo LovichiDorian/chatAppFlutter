@@ -21,6 +21,18 @@ class HomePage extends StatelessWidget {
         title: const Text('Utilisateurs'),
         actions: [
           IconButton(
+            onPressed: () => Navigator.of(context).pushNamed('/profile'),
+            icon: CircleAvatar(
+              radius: 12,
+              child: Text(
+                auth.currentUser!.displayName.isEmpty
+                    ? '?'
+                    : auth.currentUser!.displayName[0].toUpperCase(),
+              ),
+            ),
+            tooltip: 'Mon profil',
+          ),
+          IconButton(
             onPressed: () => auth.signOut(),
             icon: const Icon(Icons.logout),
             tooltip: 'Déconnexion',

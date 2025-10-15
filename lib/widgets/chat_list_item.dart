@@ -11,9 +11,20 @@ class ChatListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      leading: CircleAvatar(
-        child: Text(
-          user.displayName.isEmpty ? '?' : user.displayName[0].toUpperCase(),
+      leading: GestureDetector(
+        onTap: () =>
+            Navigator.of(context).pushNamed('/profile', arguments: user),
+        child: CircleAvatar(
+          backgroundImage: (user.avatarUrl.isNotEmpty)
+              ? NetworkImage(user.avatarUrl)
+              : null,
+          child: (user.avatarUrl.isEmpty)
+              ? Text(
+                  user.displayName.isEmpty
+                      ? '?'
+                      : user.displayName[0].toUpperCase(),
+                )
+              : null,
         ),
       ),
       title: Text(user.displayName),
