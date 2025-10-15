@@ -114,6 +114,7 @@ Android ou iOS: branchez un appareil ou démarrez un émulateur et utilisez `flu
 Astuce web: après avoir modifié `manifest.json`, fermez l’onglet de l’app et relancez la commande (ou utilisez une fenêtre de navigation privée) pour éviter le cache. (Le service worker FCM a été supprimé.)
 
 ## Utilisation
+0. Attendre jusqu'au chargement avec le 'texte bienvenue sur l'app'
 
 1. Authentification
 
