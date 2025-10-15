@@ -69,24 +69,6 @@ flutter pub get
 flutterfire configure
 ```
 
-- Android: placez `android/app/google-services.json` (si cible Android)
-- iOS: placez `ios/Runner/GoogleService-Info.plist` (si cible iOS)
-- Web:
-  - Le service worker FCM est déjà présent: `web/firebase-messaging-sw.js`
-  - Le manifest inclut `"gcm_sender_id": "103953800507"` (requis par FCM web)
-
-3. VAPID key pour notifications Web
-
-- Ouvrez `lib/constants.dart` et définissez votre clé publique VAPID:
-
-```dart
-class Notifications {
-	static const String? webVapidKey = "VOTRE_CLE_VAPID_PUBLIQUE";
-}
-```
-
-Vous trouverez la clé dans Firebase Console > Project Settings > Cloud Messaging > Web Push certificates.
-
 4. Règles Firestore/Storage (exemples de base pour dev)
 
 Firestore (exemple permissif pour utilisateurs connectés):
@@ -142,7 +124,7 @@ Astuce web: si vous modifiez `manifest.json` ou le service worker, fermez l’on
 2. Discussions
 
    - Envoyer un message texte
-   - Joindre une image via le trombone (upload vers Storage)
+   - Joindre une image via le trombone (pas fonctionnel pour le moment)
    - Appui long sur un message
      - “Supprimer pour moi” (local)
      - “Supprimer pour tous” (global)
@@ -155,40 +137,6 @@ Astuce web: si vous modifiez `manifest.json` ou le service worker, fermez l’on
    - Depuis la page de conversation, tapez le titre (avatar/nom) pour afficher le profil de l’autre utilisateur
    - Depuis la page d’accueil, ouvrez votre profil pour modifier nom et bio
 
-4. Notifications (web)
-   - Au premier lancement, acceptez la permission
-   - Le token FCM de l’utilisateur est stocké dans `users/{uid}.fcmTokens`
-   - Envoyez un test depuis Firebase Console vers ce token pour vérifier la réception
-
-## Dépannage (Troubleshooting)
-
-- Image non envoyée / non visible
-
-  - Vérifiez les règles Storage/Firestore
-  - Regardez la console: une erreur explicite est affichée en SnackBar
-  - Assurez-vous que l’utilisateur est connecté
-
-- Notifications web non reçues
-
-  - Vérifiez que `Notifications.webVapidKey` est bien renseignée
-  - Vérifiez `web/manifest.json` (gcm_sender_id) et la présence du service worker
-  - Essayez en navigation privée pour éviter l’ancien service worker
-
-- Erreurs “DWDS / Timer not supported on web”
-  - Ce sont des logs de l’outillage de debug. L’app peut fonctionner malgré ces messages.
-
-## Feuille de route (Roadmap)
-
-- Appels audio/vidéo (Agora SDK ou WebRTC)
-- Notifications locales en foreground sur mobile (flutter_local_notifications)
-- Avatar utilisateur dans la liste des messages (avec `avatarUrl`)
-- Tests unitaires et d’intégration
-
-## Avertissements
-
-- Ne commitez pas de secrets (clés privées) dans le dépôt
-- Les règles de sécurité Firebase proposées ici sont des exemples pour le développement
-
 ## Licence
 
-Projet académique/démo. Ajoutez votre licence si nécessaire.
+Dorian Lovichi.
