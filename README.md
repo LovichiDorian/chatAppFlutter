@@ -8,7 +8,7 @@ Application de messagerie Flutter avec Firebase (Auth, Firestore, Storage, Messa
   - Email/Mot de passe
   - Connexion avec Google (web via popup)
 - Messagerie
-  - Envoi de texte et d’images (Firebase Storage)
+  - Envoi de texte
   - Suppression de message
     - Pour moi (local): masque le message pour l’utilisateur courant
     - Pour tous (global): remplace par “Message supprimé” et supprime le média
@@ -19,9 +19,6 @@ Application de messagerie Flutter avec Firebase (Auth, Firestore, Storage, Messa
 - Profils
   - Affichage du profil d’autrui depuis la page de conversation
   - Édition du profil utilisateur (nom, bio)
-- Notifications push (FCM)
-  - Permissions + token enregistré dans Firestore
-  - Service worker pour notifications en arrière-plan sur le web
 - Thème
   - UI moderne Material 3
   - Thème clair et sombre (suivant le système)
@@ -139,4 +136,4 @@ Astuce web: si vous modifiez `manifest.json` ou le service worker, fermez l’on
 
 ## Licence
 
-Dorian Lovichi.
+Dorian Lovichi
