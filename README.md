@@ -1,6 +1,6 @@
 # ChatApp Flutter – Documentation détaillée (FR)
 
-Application de messagerie Flutter avec Firebase (Auth, Firestore, Storage, Messaging) et une UI moderne. Fonctionne sur le web (Chrome) et mobile (Android/iOS) après configuration.
+Application de messagerie Flutter avec Firebase (Auth, Firestore, Storage) et une UI moderne. Fonctionne sur le web (Chrome) et mobile (Android/iOS) après configuration.
 
 ## Fonctionnalités principales
 
@@ -19,9 +19,7 @@ Application de messagerie Flutter avec Firebase (Auth, Firestore, Storage, Messa
 - Profils
   - Affichage du profil d’autrui depuis la page de conversation
   - Édition du profil utilisateur (nom, bio)
-- Notifications push (FCM)
-  - Permissions + token enregistré dans Firestore
-  - Service worker pour notifications en arrière-plan sur le web
+- Notifications push: supprimées (FCM retiré à la demande)
 - Thème
   - UI moderne Material 3
   - Thème clair et sombre (suivant le système)
@@ -30,7 +28,7 @@ Application de messagerie Flutter avec Firebase (Auth, Firestore, Storage, Messa
 
 - Flutter 3.x (Material 3)
 - Firebase
-  - `firebase_core`, `firebase_auth`, `cloud_firestore`, `firebase_storage`, `firebase_messaging`
+  - `firebase_core`, `firebase_auth`, `cloud_firestore`, `firebase_storage`
 - État: `provider`
 - UI/Utilitaires: `emoji_picker_flutter`, `grouped_list`, `intl`
 
@@ -40,10 +38,9 @@ Application de messagerie Flutter avec Firebase (Auth, Firestore, Storage, Messa
 - `lib/viewmodel/` – Logique/appels Firebase (ex: `auth_view_model.dart`, `chat_view_model.dart`)
 - `lib/pages/` – Écrans (login, signup, home, chat, profil)
 - `lib/widgets/` – Widgets réutilisables (bulle de message, item liste)
-- `lib/constants.dart` – Couleurs/texte/chemins Firestore et config Notifications
+- `lib/constants.dart` – Couleurs/texte/chemins Firestore
 - `lib/firebase_options.dart` – Options Firebase générées par FlutterFire CLI
-- `web/firebase-messaging-sw.js` – Service worker FCM (Web)
-- `web/manifest.json` – Manifest PWA (inclut gcm_sender_id)
+- `web/manifest.json` – Manifest PWA
 
 ## Prérequis
 
@@ -51,7 +48,6 @@ Application de messagerie Flutter avec Firebase (Auth, Firestore, Storage, Messa
 - Un projet Firebase configuré
   - Auth (Email/Password + Google si voulu)
   - Firestore et Storage activés
-  - Cloud Messaging activé (pour notifications)
 
 ## Installation
 
@@ -112,7 +108,7 @@ flutter run -d chrome
 
 Android ou iOS: branchez un appareil ou démarrez un émulateur et utilisez `flutter run`.
 
-Astuce web: si vous modifiez `manifest.json` ou le service worker, fermez l’onglet de l’app et relancez la commande (ou utilisez une fenêtre de navigation privée) pour éviter le cache.
+Astuce web: après avoir modifié `manifest.json`, fermez l’onglet de l’app et relancez la commande (ou utilisez une fenêtre de navigation privée) pour éviter le cache. (Le service worker FCM a été supprimé.)
 
 ## Utilisation
 

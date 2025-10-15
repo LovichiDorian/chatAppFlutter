@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../constants.dart';
@@ -49,27 +48,6 @@ class AuthViewModel extends ChangeNotifier {
       _currentUser = profile;
     }
     notifyListeners();
-
-    // After ensuring profile exists, register FCM token
-    try {
-      final fcm = FirebaseMessaging.instance;
-      final token = await fcm.getToken(
-        vapidKey: kIsWeb ? Notifications.webVapidKey : null,
-      );
-      if (token != null && token.isNotEmpty) {
-        await _db.collection(FirestorePaths.users).doc(user.uid).set({
-          'fcmTokens': {token: true},
-        }, SetOptions(merge: true));
-      }
-      // Listen for token refresh
-      fcm.onTokenRefresh.listen((newToken) async {
-        await _db.collection(FirestorePaths.users).doc(user.uid).set({
-          'fcmTokens': {newToken: true},
-        }, SetOptions(merge: true));
-      });
-    } catch (_) {
-      /* ignore push errors on web/local */
-    }
   }
 
   Future<void> signUp({

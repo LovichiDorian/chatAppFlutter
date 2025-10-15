@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const primary = Colors.deepPurple;
-  static const accent = Colors.deepPurpleAccent;
-  static const bg = Color(0xFFF6F6F6);
+  // Couleur principale: blanc
+  static const primary = Colors.white;
+  // Couleur secondaire: bleu Flutter (brand)
+  static const secondary = Color(0xFF0175C2);
+  static const accent = secondary;
+  static const bg = Colors.white;
 }
 
 class AppSpacing {
@@ -24,13 +27,4 @@ class FirestorePaths {
   static const chats = 'chats';
   static String chat(String chatId) => '$chats/$chatId';
   static String messages(String chatId) => '${chat(chatId)}/messages';
-}
-
-/// Notifications-related constants.
-class Notifications {
-  /// Web Push VAPID key from Firebase Console > Project Settings > Cloud Messaging.
-  /// If null, getToken() on web may return null and push notifications won't work.
-  /// Replace with your key like:
-  /// "BPr...your-public-vapid-key...".
-  static const String? webVapidKey = null;
 }

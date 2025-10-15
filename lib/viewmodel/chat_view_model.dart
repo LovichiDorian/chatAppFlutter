@@ -88,12 +88,13 @@ class ChatViewModel extends ChangeNotifier {
     // Best-effort contentType detection
     final lower = fileName.toLowerCase();
     String contentType = 'image/jpeg';
-    if (lower.endsWith('.png'))
+    if (lower.endsWith('.png')) {
       contentType = 'image/png';
-    else if (lower.endsWith('.webp'))
+    } else if (lower.endsWith('.webp')) {
       contentType = 'image/webp';
-    else if (lower.endsWith('.gif'))
+    } else if (lower.endsWith('.gif')) {
       contentType = 'image/gif';
+    }
     try {
       await storageRef.putData(
         data,

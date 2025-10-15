@@ -23,6 +23,8 @@ class MessageItem extends StatelessWidget {
     final bubbleColor = mine ? Colors.deepPurple : Colors.grey.shade300;
     final textColor = mine ? Colors.white : Colors.black87;
     final time = DateFormat('HH:mm').format(message.timestamp);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final timeColor = isDark ? Colors.white70 : Colors.black54;
 
     Widget content;
     if (message.isDeleted) {
@@ -143,13 +145,7 @@ class MessageItem extends StatelessWidget {
         children: [
           bubbleWithOptionalAvatar,
           const SizedBox(height: 2),
-          Text(
-            time,
-            style: TextStyle(
-              fontSize: 11,
-              color: (mine ? Colors.white70 : Colors.black54),
-            ),
-          ),
+          Text(time, style: TextStyle(fontSize: 11, color: timeColor)),
         ],
       ),
     );

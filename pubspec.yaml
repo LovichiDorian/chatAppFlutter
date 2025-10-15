@@ -20,7 +20,6 @@ dependencies:
   image_picker: ^1.1.2
   grouped_list: ^5.1.2
   emoji_picker_flutter: ^3.1.0
-  firebase_messaging: ^16.0.3
 
 dev_dependencies:
   flutter_test:

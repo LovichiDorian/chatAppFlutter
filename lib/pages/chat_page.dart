@@ -133,7 +133,7 @@ class _ChatPageState extends State<ChatPage> {
                             ),
                             backgroundColor: Theme.of(
                               context,
-                            ).colorScheme.surfaceVariant,
+                            ).colorScheme.surfaceContainerHighest,
                             side: BorderSide(
                               color: Theme.of(
                                 context,
@@ -184,6 +184,7 @@ class _ChatPageState extends State<ChatPage> {
                   onPressed: _sendingImage
                       ? null
                       : () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           try {
                             final picker = ImagePicker();
                             final img = await picker.pickImage(
@@ -200,13 +201,13 @@ class _ChatPageState extends State<ChatPage> {
                               caption: '',
                             );
                             if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               const SnackBar(content: Text('Image envoyée')),
                             );
                             _scrollToBottomAfterBuild();
                           } catch (e) {
                             if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(content: Text('Erreur envoi image: $e')),
                             );
                           } finally {
