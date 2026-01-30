@@ -18,6 +18,7 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   StreamSubscription<User?>? _sub;
+  StreamSubscription<DocumentSnapshot>? _userDocSub; // Listener pour le document Firestore
   ChatUser? _currentUser;
   bool _busy = false;
   String? _error;
@@ -27,27 +28,39 @@ class AuthViewModel extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> _onAuthChange(User? user) async {
+    // Annuler l'ancien listener Firestore s'il existe
+    await _userDocSub?.cancel();
+    _userDocSub = null;
+    
     if (user == null) {
       _currentUser = null;
       notifyListeners();
       return;
     }
-    final doc = await _db.collection(FirestorePaths.users).doc(user.uid).get();
-    if (doc.exists) {
-      _currentUser = ChatUser.fromMap(doc.data()!);
-    } else {
-      final profile = ChatUser(
-        id: user.uid,
-        displayName: user.displayName ?? user.email?.split('@').first ?? 'User',
-        email: user.email ?? '',
-      );
-      await _db
-          .collection(FirestorePaths.users)
-          .doc(user.uid)
-          .set(profile.toMap());
-      _currentUser = profile;
-    }
-    notifyListeners();
+    
+    // Écouter les changements du document utilisateur en temps réel
+    _userDocSub = _db
+        .collection(FirestorePaths.users)
+        .doc(user.uid)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        _currentUser = ChatUser.fromMap(snapshot.data()!);
+      } else {
+        // Créer le profil s'il n'existe pas
+        final profile = ChatUser(
+          id: user.uid,
+          displayName: user.displayName ?? user.email?.split('@').first ?? 'User',
+          email: user.email ?? '',
+        );
+        _db
+            .collection(FirestorePaths.users)
+            .doc(user.uid)
+            .set(profile.toMap());
+        _currentUser = profile;
+      }
+      notifyListeners();
+    });
   }
 
   Future<void> signUp({
@@ -123,6 +136,7 @@ class AuthViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _sub?.cancel();
+    _userDocSub?.cancel();
     super.dispose();
   }
 }

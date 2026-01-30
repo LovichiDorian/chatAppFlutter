@@ -1,6 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
@@ -8,38 +7,32 @@ import 'package:grouped_list/grouped_list.dart';
 import 'package:intl/intl.dart';
 
 import '../constants.dart';
-import '../models/chat_user.dart';
-import '../models/message.dart';
+import '../models/group.dart';
 import '../viewmodel/auth_view_model.dart';
-import '../viewmodel/chat_view_model.dart';
-import '../widgets/message_item.dart';
+import '../viewmodel/group_view_model.dart';
+import 'group_details_page.dart';
 
-class ChatPage extends StatefulWidget {
-  const ChatPage({super.key});
+class GroupChatPage extends StatefulWidget {
+  const GroupChatPage({super.key});
 
   @override
-  State<ChatPage> createState() => _ChatPageState();
+  State<GroupChatPage> createState() => _GroupChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+class _GroupChatPageState extends State<GroupChatPage> with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
+  
   int _limit = 50;
   bool _showEmoji = false;
   bool _sendingImage = false;
-  
-  // Réponse à un message
-  Message? _replyingTo;
-  
-  // Debounce pour l'indicateur de frappe
-  Timer? _typingDebounce;
+  GroupMessage? _replyingTo;
   
   late AnimationController _animController;
   late Animation<double> _fadeIn;
   
-  ChatViewModel? _chatVm;
-  ChatUser? _otherUser;
+  GroupViewModel? _groupVm;
 
   void _scrollToBottomAfterBuild() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -55,123 +48,42 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    
     _animController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
     _fadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeOut),
     );
-    
     _animController.forward();
-    
-    // Écouter les changements de texte pour l'indicateur de frappe
-    _controller.addListener(_onTextChanged);
-  }
-  
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    
-    // Initialiser le viewmodel une fois que nous avons le contexte
-    final auth = context.read<AuthViewModel>();
-    if (auth.currentUser != null && _chatVm == null) {
-      _chatVm = ChatViewModel(currentUserId: auth.currentUser!.id);
-      _chatVm!.updateOnlineStatus(true);
-    }
-  }
-  
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Mettre à jour le statut en ligne quand l'app passe en arrière-plan
-    if (_chatVm != null) {
-      if (state == AppLifecycleState.resumed) {
-        _chatVm!.updateOnlineStatus(true);
-      } else if (state == AppLifecycleState.paused) {
-        _chatVm!.updateOnlineStatus(false);
-      }
-    }
-  }
-
-  void _onTextChanged() {
-    if (_otherUser == null || _chatVm == null) return;
-    
-    _typingDebounce?.cancel();
-    
-    if (_controller.text.isNotEmpty) {
-      _chatVm!.setTyping(_otherUser!.id, true);
-      
-      // Arrêter automatiquement après 3 secondes d'inactivité
-      _typingDebounce = Timer(const Duration(seconds: 3), () {
-        _chatVm!.setTyping(_otherUser!.id, false);
-      });
-    } else {
-      _chatVm!.setTyping(_otherUser!.id, false);
-    }
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _animController.dispose();
-    _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
-    _typingDebounce?.cancel();
-    
-    // Mettre hors ligne et arrêter de taper
-    if (_chatVm != null) {
-      _chatVm!.updateOnlineStatus(false);
-      if (_otherUser != null) {
-        _chatVm!.setTyping(_otherUser!.id, false);
-      }
-    }
-    
     super.dispose();
-  }
-
-  Color _getAvatarColor(String name) {
-    final colors = [
-      AppColors.primary,
-      AppColors.secondary,
-      AppColors.accent,
-      const Color(0xFF10B981),
-      const Color(0xFFF59E0B),
-      const Color(0xFF8B5CF6),
-    ];
-    final index = name.isEmpty ? 0 : name.codeUnitAt(0) % colors.length;
-    return colors[index];
   }
 
   @override
   Widget build(BuildContext context) {
-    final other = ModalRoute.of(context)!.settings.arguments as ChatUser;
-    _otherUser = other;
-    
+    final group = ModalRoute.of(context)!.settings.arguments as Group;
     final auth = context.watch<AuthViewModel>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final avatarColor = _getAvatarColor(other.displayName);
     
     if (auth.currentUser == null) {
-      return Scaffold(
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: isDark ? AppColors.gradientDark : AppColors.gradientBackground,
-          ),
-          child: const Center(child: CircularProgressIndicator()),
-        ),
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
     
-    final chatVm = _chatVm ?? ChatViewModel(currentUserId: auth.currentUser!.id);
-    _chatVm = chatVm;
-    
-    // Marquer les messages comme lus
-    chatVm.markMessagesAsRead(other.id);
+    _groupVm ??= GroupViewModel(
+      currentUserId: auth.currentUser!.id,
+      currentUserName: auth.currentUser!.displayName,
+    );
+    final groupVm = _groupVm!;
 
     return Scaffold(
       body: Container(
@@ -183,22 +95,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
             opacity: _fadeIn,
             child: Column(
               children: [
-                // AppBar personnalisée avec statut en temps réel
-                _buildAppBar(context, other, chatVm, avatarColor, isDark),
-                
-                // Messages
+                _buildAppBar(context, group, groupVm, isDark),
                 Expanded(
-                  child: _buildMessages(context, chatVm, other, auth, isDark),
+                  child: _buildMessages(context, group, groupVm, auth, isDark),
                 ),
-                
-                // Zone de réponse (si on répond à un message)
-                if (_replyingTo != null)
-                  _buildReplyBar(isDark),
-                
-                // Zone de saisie
-                _buildInputArea(context, chatVm, other, isDark),
-                
-                // Emoji picker
+                if (_replyingTo != null) _buildReplyBar(isDark),
+                _buildInputArea(context, group, groupVm, isDark),
                 if (_showEmoji) _buildEmojiPicker(isDark),
               ],
             ),
@@ -208,11 +110,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
     );
   }
 
-  Widget _buildAppBar(BuildContext context, ChatUser other, ChatViewModel chatVm, Color avatarColor, bool isDark) {
-    return StreamBuilder<ChatUser?>(
-      stream: chatVm.userStream(other.id),
+  Widget _buildAppBar(BuildContext context, Group group, GroupViewModel groupVm, bool isDark) {
+    return StreamBuilder<Group?>(
+      stream: groupVm.groupStream(group.id),
       builder: (context, snapshot) {
-        final liveUser = snapshot.data ?? other;
+        final liveGroup = snapshot.data ?? group;
         
         return Container(
           padding: const EdgeInsets.symmetric(
@@ -241,55 +143,32 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
               
               Expanded(
                 child: GestureDetector(
-                  onTap: () => Navigator.of(context).pushNamed('/profile', arguments: other),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => GroupDetailsPage(group: liveGroup),
+                    ),
+                  ),
                   child: Row(
                     children: [
-                      // Avatar avec indicateur en ligne
-                      Stack(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [avatarColor, avatarColor.withValues(alpha: 0.7)],
-                              ),
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                            ),
-                            child: Center(
-                              child: Text(
-                                liveUser.displayName.isEmpty
-                                    ? '?'
-                                    : liveUser.displayName[0].toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.gradientAccent,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: Center(
+                          child: Text(
+                            liveGroup.name.isEmpty
+                                ? '?'
+                                : liveGroup.name[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          // Indicateur en ligne
-                          if (liveUser.isOnline)
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                width: 14,
-                                height: 14,
-                                decoration: BoxDecoration(
-                                  color: AppColors.success,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isDark ? AppColors.surfaceDark : Colors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
@@ -297,7 +176,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              liveUser.displayName,
+                              liveGroup.name,
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -305,8 +184,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            // Statut ou indicateur de frappe
-                            _buildStatusText(liveUser, isDark),
+                            Text(
+                              '${liveGroup.memberCount} membres',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white54 : AppColors.textSecondary,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -316,9 +200,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
               ),
               
               IconButton(
-                onPressed: () {},
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => GroupDetailsPage(group: liveGroup),
+                  ),
+                ),
                 icon: Icon(
-                  Icons.more_vert_rounded,
+                  Icons.info_outline_rounded,
                   color: isDark ? Colors.white70 : AppColors.textSecondary,
                 ),
               ),
@@ -329,47 +217,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
     );
   }
 
-  Widget _buildStatusText(ChatUser user, bool isDark) {
-    final auth = context.read<AuthViewModel>();
-    
-    // Vérifier si l'utilisateur est en train d'écrire à l'utilisateur actuel
-    if (user.isTyping && user.typingTo == auth.currentUser?.id) {
-      return Row(
-        children: [
-          _TypingIndicator(),
-          const SizedBox(width: 4),
-          Text(
-            'écrit...',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.primary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      );
-    }
-    
-    return Text(
-      user.statusText,
-      style: TextStyle(
-        fontSize: 12,
-        color: user.isOnline
-            ? AppColors.success
-            : (isDark ? Colors.white54 : AppColors.textSecondary),
-      ),
-    );
-  }
-
   Widget _buildMessages(
     BuildContext context,
-    ChatViewModel chatVm,
-    ChatUser other,
+    Group group,
+    GroupViewModel groupVm,
     AuthViewModel auth,
     bool isDark,
   ) {
-    return StreamBuilder<List<Message>>(
-      stream: chatVm.messagesStream(other.id, limit: _limit),
+    return StreamBuilder<List<GroupMessage>>(
+      stream: groupVm.messagesStream(group.id, limit: _limit),
       builder: (context, snap) {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -378,7 +234,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
         final messages = snap.data!;
         
         if (messages.isEmpty) {
-          return _buildEmptyChat(context, other, isDark);
+          return _buildEmptyChat(context, group, isDark);
         }
         
         return NotificationListener<ScrollNotification>(
@@ -388,7 +244,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
             }
             return false;
           },
-          child: GroupedListView<Message, DateTime>(
+          child: GroupedListView<GroupMessage, DateTime>(
             controller: _scrollController,
             elements: messages,
             padding: const EdgeInsets.symmetric(
@@ -405,30 +261,26 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
             groupComparator: (a, b) => a.compareTo(b),
             useStickyGroupSeparators: false,
             floatingHeader: false,
-            groupSeparatorBuilder: (DateTime date) => _buildDateSeparator(context, date, isDark),
-            itemBuilder: (_, m) => MessageItem(
+            groupSeparatorBuilder: (date) => _buildDateSeparator(date, isDark),
+            itemBuilder: (_, m) => _GroupMessageItem(
               message: m,
               selfId: auth.currentUser!.id,
-              onDeleteForMe: () => chatVm.deleteForMe(
-                otherUserId: other.id,
-                messageId: m.id,
-              ),
-              onDeleteForEveryone: () => chatVm.deleteForEveryone(
-                otherUserId: other.id,
-                messageId: m.id,
-              ),
-              onReply: (message) {
-                setState(() => _replyingTo = message);
+              isDark: isDark,
+              onReply: () {
+                setState(() => _replyingTo = m);
                 _focusNode.requestFocus();
               },
               onReaction: (emoji) {
-                chatVm.toggleReaction(
-                  otherUserId: other.id,
+                groupVm.toggleReaction(
+                  groupId: group.id,
                   messageId: m.id,
                   emoji: emoji,
                   currentlyHasReaction: m.hasReaction(emoji, auth.currentUser!.id),
                 );
               },
+              onDelete: m.from == auth.currentUser!.id
+                  ? () => groupVm.deleteMessage(group.id, m.id)
+                  : null,
             ),
           ),
         );
@@ -436,7 +288,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
     );
   }
 
-  Widget _buildDateSeparator(BuildContext context, DateTime date, bool isDark) {
+  Widget _buildDateSeparator(DateTime date, bool isDark) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
@@ -478,7 +330,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
     );
   }
 
-  Widget _buildEmptyChat(BuildContext context, ChatUser other, bool isDark) {
+  Widget _buildEmptyChat(BuildContext context, Group group, bool isDark) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -487,25 +339,25 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppRadius.xl),
             ),
             child: const Icon(
-              Icons.waving_hand_rounded,
+              Icons.celebration_rounded,
               size: 40,
-              color: AppColors.primary,
+              color: AppColors.accent,
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
-            'Dites bonjour !',
+            'Groupe créé !',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: isDark ? Colors.white : AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Envoyez votre premier message à ${other.displayName}',
+            'Envoyez le premier message dans ${group.name}',
             style: TextStyle(
               color: isDark ? Colors.white54 : AppColors.textSecondary,
             ),
@@ -525,21 +377,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: 0.05)
-            : AppColors.primary.withValues(alpha: 0.05),
+            : AppColors.accent.withValues(alpha: 0.05),
         border: Border(
-          left: BorderSide(
-            color: AppColors.primary,
-            width: 4,
-          ),
+          left: BorderSide(color: AppColors.accent, width: 4),
         ),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.reply_rounded,
-            size: 20,
-            color: AppColors.primary,
-          ),
+          Icon(Icons.reply_rounded, size: 20, color: AppColors.accent),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -547,11 +392,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Réponse à',
+                  'Réponse à ${_replyingTo?.fromName}',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
+                    color: AppColors.accent,
                   ),
                 ),
                 Text(
@@ -579,7 +424,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
     );
   }
 
-  Widget _buildInputArea(BuildContext context, ChatViewModel chatVm, ChatUser other, bool isDark) {
+  Widget _buildInputArea(BuildContext context, Group group, GroupViewModel groupVm, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -612,14 +457,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
                       if (img == null) return;
                       setState(() => _sendingImage = true);
                       final data = await img.readAsBytes();
-                      await chatVm.sendImage(
-                        to: other.id,
+                      await groupVm.sendImage(
+                        groupId: group.id,
                         data: data,
                         fileName: img.name,
-                        caption: '',
-                        replyTo: _replyingTo,
                       );
-                      setState(() => _replyingTo = null);
                       if (!mounted) return;
                       messenger.showSnackBar(
                         SnackBar(
@@ -645,9 +487,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
           const SizedBox(width: AppSpacing.xs),
           
           _InputIconButton(
-            icon: _showEmoji
-                ? Icons.keyboard_rounded
-                : Icons.emoji_emotions_outlined,
+            icon: _showEmoji ? Icons.keyboard_rounded : Icons.emoji_emotions_outlined,
             isDark: isDark,
             isActive: _showEmoji,
             onPressed: () {
@@ -685,8 +525,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
                 onSubmitted: (_) async {
                   final text = _controller.text.trim();
                   if (text.isEmpty) return;
-                  await chatVm.sendMessage(
-                    to: other.id,
+                  await groupVm.sendMessage(
+                    groupId: group.id,
                     content: text,
                     replyTo: _replyingTo,
                   );
@@ -696,15 +536,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
                   _focusNode.requestFocus();
                 },
                 onTap: () {
-                  if (_showEmoji) {
-                    setState(() => _showEmoji = false);
-                  }
+                  if (_showEmoji) setState(() => _showEmoji = false);
                 },
                 style: TextStyle(
                   color: isDark ? Colors.white : AppColors.textPrimary,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Votre message...',
+                  hintText: 'Message au groupe...',
                   hintStyle: TextStyle(
                     color: isDark ? Colors.white38 : AppColors.textLight,
                   ),
@@ -726,8 +564,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
             onPressed: () async {
               final text = _controller.text.trim();
               if (text.isEmpty) return;
-              await chatVm.sendMessage(
-                to: other.id,
+              await groupVm.sendMessage(
+                groupId: group.id,
                 content: text,
                 replyTo: _replyingTo,
               );
@@ -770,94 +608,396 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
           ),
           categoryViewConfig: CategoryViewConfig(
             backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-            indicatorColor: AppColors.primary,
-            iconColorSelected: AppColors.primary,
+            indicatorColor: AppColors.accent,
+            iconColorSelected: AppColors.accent,
             iconColor: isDark ? Colors.white38 : AppColors.textLight,
           ),
           bottomActionBarConfig: const BottomActionBarConfig(enabled: false),
-          searchViewConfig: SearchViewConfig(
-            backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-            buttonIconColor: isDark ? Colors.white54 : AppColors.textSecondary,
-          ),
         ),
       ),
     );
   }
 }
 
-// Indicateur de frappe animé (3 points qui bougent)
-class _TypingIndicator extends StatefulWidget {
-  @override
-  State<_TypingIndicator> createState() => _TypingIndicatorState();
-}
+// Widget pour afficher un message de groupe
+class _GroupMessageItem extends StatelessWidget {
+  final GroupMessage message;
+  final String selfId;
+  final bool isDark;
+  final VoidCallback onReply;
+  final Function(String emoji) onReaction;
+  final VoidCallback? onDelete;
 
-class _TypingIndicatorState extends State<_TypingIndicator> with TickerProviderStateMixin {
-  late List<AnimationController> _controllers;
-  late List<Animation<double>> _animations;
+  const _GroupMessageItem({
+    required this.message,
+    required this.selfId,
+    required this.isDark,
+    required this.onReply,
+    required this.onReaction,
+    this.onDelete,
+  });
 
-  @override
-  void initState() {
-    super.initState();
-    _controllers = List.generate(3, (index) {
-      return AnimationController(
-        duration: const Duration(milliseconds: 400),
-        vsync: this,
-      );
-    });
-    
-    _animations = _controllers.map((controller) {
-      return Tween<double>(begin: 0, end: 1).animate(
-        CurvedAnimation(parent: controller, curve: Curves.easeInOut),
-      );
-    }).toList();
-    
-    // Démarrer les animations avec un délai
-    for (int i = 0; i < 3; i++) {
-      Future.delayed(Duration(milliseconds: i * 150), () {
-        if (mounted) {
-          _controllers[i].repeat(reverse: true);
-        }
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    for (var controller in _controllers) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
+  static const _quickReactions = ['❤️', '😂', '😮', '😢', '👍'];
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(3, (index) {
-        return AnimatedBuilder(
-          animation: _animations[index],
-          builder: (context, child) {
-            return Container(
-              margin: const EdgeInsets.only(right: 2),
-              child: Transform.translate(
-                offset: Offset(0, -3 * _animations[index].value),
-                child: Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
+    final mine = message.from == selfId;
+    final isSystem = message.type == 'system';
+    final time = DateFormat('HH:mm').format(message.timestamp);
+
+    if (isSystem) {
+      return _buildSystemMessage(context);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+      child: Column(
+        crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          // Réponse citée
+          if (message.replyToContent != null)
+            _buildReplyPreview(mine),
+          
+          // Nom de l'expéditeur (si pas le mien)
+          if (!mine)
+            Padding(
+              padding: const EdgeInsets.only(left: 8, bottom: 2),
+              child: Text(
+                message.fromName,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _getSenderColor(message.fromName),
                 ),
               ),
-            );
-          },
-        );
-      }),
+            ),
+          
+          // Bulle de message
+          GestureDetector(
+            onLongPress: () => _showContextMenu(context, mine),
+            onDoubleTap: () => onReaction('❤️'),
+            child: _buildBubble(context, mine),
+          ),
+          
+          // Réactions
+          if (message.reactions.isNotEmpty)
+            _buildReactionsDisplay(mine),
+          
+          // Heure
+          Padding(
+            padding: EdgeInsets.only(
+              left: mine ? 0 : 8,
+              right: mine ? 8 : 0,
+              top: 2,
+            ),
+            child: Text(
+              time,
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? Colors.white38 : AppColors.textLight,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getSenderColor(String name) {
+    final colors = [
+      AppColors.primary,
+      AppColors.secondary,
+      AppColors.accent,
+      const Color(0xFF10B981),
+      const Color(0xFFF59E0B),
+      const Color(0xFF8B5CF6),
+    ];
+    final index = name.isEmpty ? 0 : name.codeUnitAt(0) % colors.length;
+    return colors[index];
+  }
+
+  Widget _buildSystemMessage(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(AppRadius.full),
+        ),
+        child: Text(
+          message.content,
+          style: TextStyle(
+            fontSize: 12,
+            fontStyle: FontStyle.italic,
+            color: isDark ? Colors.white54 : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReplyPreview(bool mine) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: mine ? 60 : 0,
+        right: mine ? 0 : 60,
+        bottom: 4,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : Colors.black.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border(
+            left: BorderSide(color: AppColors.accent, width: 3),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message.replyToFrom ?? '',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.accent,
+              ),
+            ),
+            Text(
+              message.replyToContent ?? '',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.white54 : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBubble(BuildContext context, bool mine) {
+    if (message.isDeleted) {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.block_rounded, size: 14, color: Colors.grey),
+            const SizedBox(width: 4),
+            Text(
+              'Message supprimé',
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                color: isDark ? Colors.white38 : AppColors.textLight,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final bubbleDecoration = mine
+        ? BoxDecoration(
+            gradient: AppColors.gradientPrimary,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(AppRadius.lg),
+              topRight: const Radius.circular(AppRadius.lg),
+              bottomLeft: const Radius.circular(AppRadius.lg),
+              bottomRight: const Radius.circular(AppRadius.xs),
+            ),
+          )
+        : BoxDecoration(
+            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(AppRadius.lg),
+              topRight: const Radius.circular(AppRadius.lg),
+              bottomLeft: const Radius.circular(AppRadius.xs),
+              bottomRight: const Radius.circular(AppRadius.lg),
+            ),
+            boxShadow: isDark ? null : AppShadows.small,
+          );
+
+    final textColor = mine ? Colors.white : (isDark ? Colors.white : AppColors.textPrimary);
+
+    if (message.type == 'image' && message.mediaUrl != null) {
+      return Container(
+        constraints: const BoxConstraints(maxWidth: 250),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Image.network(
+            message.mediaUrl!,
+            fit: BoxFit.cover,
+            loadingBuilder: (ctx, child, progress) {
+              if (progress == null) return child;
+              return Container(
+                width: 200,
+                height: 150,
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                child: const Center(child: CircularProgressIndicator()),
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: bubbleDecoration,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      constraints: const BoxConstraints(maxWidth: 280),
+      child: Text(
+        message.content,
+        style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
+      ),
+    );
+  }
+
+  Widget _buildReactionsDisplay(bool mine) {
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 4,
+        left: mine ? 0 : 8,
+        right: mine ? 8 : 0,
+      ),
+      child: Wrap(
+        spacing: 4,
+        children: message.reactions.entries.map((entry) {
+          final emoji = entry.key;
+          final users = entry.value;
+          if (users.isEmpty) return const SizedBox.shrink();
+          
+          final hasMyReaction = users.contains(selfId);
+          
+          return GestureDetector(
+            onTap: () => onReaction(emoji),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: hasMyReaction
+                    ? AppColors.accent.withValues(alpha: 0.2)
+                    : (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.shade100),
+                borderRadius: BorderRadius.circular(AppRadius.full),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(emoji, style: const TextStyle(fontSize: 14)),
+                  if (users.length > 1) ...[
+                    const SizedBox(width: 2),
+                    Text(
+                      '${users.length}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  void _showContextMenu(BuildContext context, bool mine) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF2D2D44) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Barre de réactions rapides
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: _quickReactions.map((emoji) {
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      onReaction(emoji);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.reply_rounded),
+              title: const Text('Répondre'),
+              onTap: () {
+                Navigator.pop(context);
+                onReply();
+              },
+            ),
+            if (message.content.isNotEmpty && !message.isDeleted)
+              ListTile(
+                leading: const Icon(Icons.copy_rounded),
+                title: const Text('Copier'),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: message.content));
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Message copié')),
+                  );
+                },
+              ),
+            if (onDelete != null)
+              ListTile(
+                leading: Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                title: Text('Supprimer', style: TextStyle(color: AppColors.error)),
+                onTap: () {
+                  Navigator.pop(context);
+                  onDelete!();
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
 
+// Widgets réutilisables
 class _InputIconButton extends StatelessWidget {
   final IconData? icon;
   final bool isDark;
@@ -882,10 +1022,8 @@ class _InputIconButton extends StatelessWidget {
         height: 42,
         decoration: BoxDecoration(
           color: isActive
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : (isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : AppColors.surface),
+              ? AppColors.accent.withValues(alpha: 0.1)
+              : (isDark ? Colors.white.withValues(alpha: 0.08) : AppColors.surface),
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Center(
@@ -904,7 +1042,7 @@ class _InputIconButton extends StatelessWidget {
                   icon,
                   size: 22,
                   color: isActive
-                      ? AppColors.primary
+                      ? AppColors.accent
                       : (isDark ? Colors.white54 : AppColors.textSecondary),
                 ),
         ),
@@ -915,14 +1053,13 @@ class _InputIconButton extends StatelessWidget {
 
 class _SendButton extends StatefulWidget {
   final VoidCallback onPressed;
-
   const _SendButton({required this.onPressed});
 
   @override
   State<_SendButton> createState() => _SendButtonState();
 }
 
-class _SendButtonState extends State<_SendButton> with SingleTickerProviderStateMixin {
+class _SendButtonState extends State<_SendButton> {
   bool _isPressed = false;
 
   @override
@@ -940,16 +1077,18 @@ class _SendButtonState extends State<_SendButton> with SingleTickerProviderState
         height: 48,
         transform: Matrix4.identity()..scale(_isPressed ? 0.9 : 1.0),
         decoration: BoxDecoration(
-          gradient: AppColors.gradientPrimary,
+          gradient: AppColors.gradientAccent,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          boxShadow: AppShadows.glow,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.accent.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: const Center(
-          child: Icon(
-            Icons.send_rounded,
-            color: Colors.white,
-            size: 22,
-          ),
+          child: Icon(Icons.send_rounded, color: Colors.white, size: 22),
         ),
       ),
     );
